@@ -3,6 +3,7 @@
 import logging
 from collectors.fire_ems_collector import run_fire_ems_collector
 from collectors.rss_collector import run_rss_collector
+from collectors.facebook_collector import run_facebook_collector   # New
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,6 +22,9 @@ def main():
         
         logger.info("📰 Running RSS/News Collector...")
         run_rss_collector()
+
+        logger.info("📘 Running Facebook Collector...")
+        run_facebook_collector()
 
         logger.info("=" * 60)
         logger.info("✅ All collectors completed successfully!")
