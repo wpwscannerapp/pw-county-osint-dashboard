@@ -26,36 +26,24 @@ supabase = get_supabase()
 @st.cache_data(ttl=60)
 def load_incidents(limit=500):
     try:
-        # Try your dedicated schema first
-        response = supabase.table("pwc_osint.incidents") \
+        # Using public schema (this is where your table currently is)
+        response = supabase.table("incidents") \
             .select("*") \
             .order("created_at", desc=True) \
             .limit(limit) \
             .execute()
         df = pd.DataFrame(response.data)
-        st.success(f"✅ Loaded {len(df)} records from pwc_osint.incidents")
+        st.success(f"✅ Loaded {len(df)} incidents from public.incidents")
         return df
     except Exception as e:
-        st.warning(f"Could not load from pwc_osint.incidents: {e}")
-        try:
-            # Fallback to public schema
-            response = supabase.table("incidents") \
-                .select("*") \
-                .order("created_at", desc=True) \
-                .limit(limit) \
-                .execute()
-            df = pd.DataFrame(response.data)
-            st.info(f"Loaded from public.incidents ({len(df)} records)")
-            return df
-        except Exception as e2:
-            st.error(f"Database Error: {e2}")
-            return pd.DataFrame()
+        st.error(f"❌ Database Error: {e}")
+        return pd.DataFrame()
 
 df = load_incidents()
 
 if df.empty:
     st.warning("⚠️ No incidents found yet.")
-    st.info("→ Go to GitHub → Actions and manually run the collector.")
+    st.info("→ Go to GitHub → Actions and manually run the 'OSINT Data Collectors' workflow.")
     st.stop()
 
 # ======================== FILTERS ========================
