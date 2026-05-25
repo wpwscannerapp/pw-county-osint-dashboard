@@ -42,13 +42,59 @@ class FireEMSCollector:
         except Exception as e:
             logger.error(f"[!] Store failed: {e}")
             return False
-
-    # ... (keep the rest of your collect_incidents method the same)
+   
     def collect_incidents(self):
-        # (your existing collection logic)
-        logger.info("[*] Collecting Fire/EMS incidents...")
-        # ... rest of your code ...
-        pass   # I'll give you the full file if needed
+        logger.info("[*] Collecting Fire/EMS incidents from Virginia API...")
+        try:
+            params = {
+                'where': '1=1',
+                'outFields': '*',
+                'returnGeometry': 'true',
+                'f': 'json',
+                'resultRecordCount': 1000
+            }
+            
+            response = requests.get(
+                'https://services.arcgisonline.com/arcgis/rest/services/Virginia_Fire_EMS/FeatureServer/0/query',
+                params=params, timeout=15
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            count = 0
+            for feature in data.get('features', []):
+                attr = feature.get('attributes', {})
+                geom = feature.get('geometry', {})
+                
+                if not geom.get('x') or not geom.get('y'):
+                    continue
+                
+                lat = geom['y']
+                lon = geom['x']
+                
+                if not self.is_in_pwc(lat, lon):
+                    continue
+                
+                incident = {
+                    "title": attr.get('IncidentType', 'Fire/EMS Incident'),
+                    "description": attr.get('Description', ''),
+                    "category": "fire",
+                    "incident_type": attr.get('IncidentType', ''),
+                    "location": self.get_location_name(lat, lon),
+                    "latitude": lat,
+                    "longitude": lon,
+                    "source": "Virginia Fire/EMS API",
+                    "external_id": str(attr.get('OBJECTID', '')),
+                    "created_at": datetime.now().isoformat()
+                }
+                
+                if self.store_incident(incident):
+                    count += 1
+            
+            logger.info(f"[+] Collected {count} Fire/EMS incidents")
+            
+        except Exception as e:
+            logger.error(f"[!] Fire/EMS collection error: {e}")
 
 def run_fire_ems_collector():
     FireEMSCollector().collect_incidents()
