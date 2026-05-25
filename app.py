@@ -34,17 +34,20 @@ def load_incidents(limit=500):
 df = load_incidents()
 
 if df.empty:
-    st.warning("⚠️ No incidents found yet. Collectors are running via GitHub Actions.")
+    st.warning("⚠️ No incidents found yet.")
+    st.info("Your GitHub Actions collectors are running every 20 minutes. Data should appear soon.")
     st.stop()
 
-# Filters
+# Safe column access
 st.sidebar.header("🔍 Filters")
-locations = ['All'] + sorted(df['location'].dropna().unique().tolist())
+
+locations = ['All'] + sorted(df.get('location', pd.Series()).dropna().unique().tolist())
 selected_location = st.sidebar.selectbox("📍 Location", locations)
 
-categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
+categories = ['All'] + sorted(df.get('category', pd.Series()).dropna().unique().tolist())
 selected_category = st.sidebar.selectbox("📌 Category", categories)
 
+# Apply filters
 filtered_df = df.copy()
 if selected_location != 'All':
     filtered_df = filtered_df[filtered_df['location'] == selected_location]
@@ -54,7 +57,8 @@ if selected_category != 'All':
 # Dashboard
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Incidents", len(filtered_df))
-col2.metric("Last Updated", filtered_df['created_at'].max()[:16] if not filtered_df.empty else "N/A")
+col2.metric("Last Updated", 
+            filtered_df['created_at'].max()[:16] if not filtered_df.empty and 'created_at' in filtered_df.columns else "—")
 col3.metric("Sources", filtered_df.get('source', pd.Series()).nunique())
 
 tab1, tab2, tab3 = st.tabs(["📋 Live Incidents", "🗺️ Heatmap", "📊 Analytics"])
