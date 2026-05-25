@@ -11,7 +11,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 SCHEMA = "pwc_osint"
 
-# Location Configuration
+# === Locations ===
 PWC_LOCATIONS = {
     'Manassas': {'lat': 38.7509, 'lon': -77.4734, 'radius_miles': 5},
     'Manassas Park': {'lat': 38.7942, 'lon': -77.4521, 'radius_miles': 3},
@@ -23,14 +23,23 @@ PWC_LOCATIONS = {
     'Prince William County': {'lat': 38.6546, 'lon': -77.4280, 'radius_miles': 20},
 }
 
-# RSS Feeds
+# === RSS Feeds ===
 RSS_FEEDS = [
     {"name": "Potomac Local News", "url": "https://potomaclocal.com/feed/"},
     {"name": "Prince William Living", "url": "https://princewilliamliving.com/feed/"},
     {"name": "Bristow Beat", "url": "https://bristowbeat.com/feed/"},
 ]
 
-# Incident Keywords
+# === Facebook Pages ===
+FACEBOOK_PAGES = [
+    {
+        "name": "Western Prince William Scanner Feed",
+        "url": "https://www.facebook.com/WesternPrinceWilliamScannerFeed",   # Update if needed
+        "page_id": ""  # Optional: if you have the numeric ID
+    }
+]
+
+# === Keywords ===
 INCIDENT_KEYWORDS = {
     'police': ['police', 'shooting', 'arrest', 'crime', 'officer', 'sheriff'],
     'fire': ['fire', 'burning', 'explosion', 'smoke'],
