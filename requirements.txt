@@ -1,7 +1,5 @@
 streamlit
-st-supabase-connection
 supabase
-python-dotenv
 pandas
 plotly
 folium
@@ -9,3 +7,5 @@ geopy
 feedparser
 textblob
 spacy
+python-dotenv
+requests
