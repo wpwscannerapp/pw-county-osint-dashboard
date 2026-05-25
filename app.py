@@ -1,113 +1,76 @@
 import streamlit as st
 import pandas as pd
-import psycopg2
 from datetime import datetime
 import plotly.express as px
 
-from config import DATABASE_URL, SCHEMA
+# Use the official Streamlit Supabase connection
+from st_supabase_connection import SupabaseConnection
 
-st.set_page_config(
-    page_title="PWC OSINT Dashboard",
-    page_icon="🚨",
-    layout="wide"
-)
+st.set_page_config(page_title="PWC OSINT Dashboard", page_icon="🚨", layout="wide")
 
 st.title("🚨 Prince William County OSINT Dashboard")
-st.markdown("Real-time incident monitoring for Prince William County, VA")
+st.markdown("Real-time incident monitoring")
 
-# ========================
-# DATABASE CONNECTION
-# ========================
-@st.cache_resource
-def get_connection():
-    return psycopg2.connect(DATABASE_URL)
+# Initialize Supabase connection
+conn = st.connection("supabase", type=SupabaseConnection)
 
-def load_incidents(limit=500):
-    conn = get_connection()
-    query = f"""
-        SELECT 
-            id, title, description, category, incident_type, location,
-            latitude, longitude, source, source_url, sentiment, created_at
-        FROM {SCHEMA}.incidents
-        ORDER BY created_at DESC
-        LIMIT %s
-    """
-    df = pd.read_sql_query(query, conn, params=(limit,))
-    conn.close()
-    return df
-
-# ========================
-# SIDEBAR FILTERS
-# ========================
-st.sidebar.header("Filters")
+@st.cache_data(ttl=60)  # Refresh every minute
+def load_incidents():
+    try:
+        response = conn.table("pwc_osint.incidents").select("*").order("created_at", desc=True).limit(500).execute()
+        return pd.DataFrame(response.data)
+    except Exception as e:
+        st.error(f"Database error: {e}")
+        return pd.DataFrame()
 
 df = load_incidents()
 
 if df.empty:
-    st.warning("No incidents found yet. Collectors are running in background.")
-else:
-    # Location filter
-    locations = ['All'] + sorted(df['location'].unique())
-    selected_location = st.sidebar.selectbox("Location", locations)
+    st.warning("No incidents found yet. Collectors should be running via GitHub Actions.")
+    st.stop()
 
-    # Category filter
-    categories = ['All'] + sorted(df['category'].unique())
-    selected_category = st.sidebar.selectbox("Category", categories)
+# Filters
+st.sidebar.header("Filters")
+locations = ['All'] + sorted(df['location'].unique().tolist())
+selected_location = st.sidebar.selectbox("Location", locations)
 
-    # Apply filters
-    filtered_df = df.copy()
-    if selected_location != 'All':
-        filtered_df = filtered_df[filtered_df['location'] == selected_location]
-    if selected_category != 'All':
-        filtered_df = filtered_df[filtered_df['category'] == selected_category]
+categories = ['All'] + sorted(df['category'].unique().tolist())
+selected_category = st.sidebar.selectbox("Category", categories)
 
-    # ========================
-    # MAIN DASHBOARD
-    # ========================
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Incidents", len(filtered_df))
-    with col2:
-        st.metric("Last Updated", filtered_df['created_at'].max().strftime("%H:%M") if not filtered_df.empty else "N/A")
-    with col3:
-        st.metric("Sources", filtered_df['source'].nunique())
+# Apply filters
+filtered = df.copy()
+if selected_location != 'All':
+    filtered = filtered[filtered['location'] == selected_location]
+if selected_category != 'All':
+    filtered = filtered[filtered['category'] == selected_category]
 
-    # Tabs
-    tab1, tab2, tab3 = st.tabs(["Live Incidents", "Heatmap", "Analytics"])
+# Dashboard
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Incidents", len(filtered))
+col2.metric("Last Updated", filtered['created_at'].max() if not filtered.empty else "N/A")
+col3.metric("Sources", filtered['source'].nunique() if 'source' in filtered.columns else 0)
 
-    with tab1:
-        st.dataframe(
-            filtered_df[['created_at', 'location', 'category', 'title', 'description', 'source']],
-            use_container_width=True,
-            hide_index=True
-        )
+tab1, tab2, tab3 = st.tabs(["Live Incidents", "Heatmap", "Analytics"])
 
-    with tab2:
-        if not filtered_df.empty and 'latitude' in filtered_df.columns:
-            st.map(
-                filtered_df,
-                latitude='latitude',
-                longitude='longitude',
-                size=20,
-                color='category'
-            )
-        else:
-            st.info("No location data available yet.")
+with tab1:
+    st.dataframe(filtered, use_container_width=True, hide_index=True)
 
-    with tab3:
-        if not filtered_df.empty:
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.subheader("Incidents by Category")
-                fig = px.pie(filtered_df, names='category', title="Category Breakdown")
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col_b:
-                st.subheader("Incidents Over Time")
-                filtered_df['date'] = pd.to_datetime(filtered_df['created_at']).dt.date
-                time_df = filtered_df.groupby('date').size().reset_index(name='count')
-                fig2 = px.line(time_df, x='date', y='count', title="Incidents Trend")
-                st.plotly_chart(fig2, use_container_width=True)
+with tab2:
+    if not filtered.empty and 'latitude' in filtered.columns:
+        st.map(filtered, latitude='latitude', longitude='longitude')
+    else:
+        st.info("No location data available.")
 
-# Footer
-st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Data from pwc_osint schema")
+with tab3:
+    if not filtered.empty:
+        c1, c2 = st.columns(2)
+        with c1:
+            fig = px.pie(filtered, names='category', title="Incidents by Category")
+            st.plotly_chart(fig, use_container_width=True)
+        with c2:
+            filtered['date'] = pd.to_datetime(filtered['created_at']).dt.date
+            trend = filtered.groupby('date').size().reset_index(name='count')
+            fig2 = px.line(trend, x='date', y='count', title="Trend Over Time")
+            st.plotly_chart(fig2, use_container_width=True)
+
+st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
