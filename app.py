@@ -26,7 +26,8 @@ supabase = get_supabase()
 @st.cache_data(ttl=60)
 def load_incidents(limit=500):
     try:
-        response = supabase.table("pwc_osint.incidents") \
+        # Using public schema (as per Supabase hint)
+        response = supabase.table("incidents") \
             .select("*") \
             .order("created_at", desc=True) \
             .limit(limit) \
@@ -34,7 +35,6 @@ def load_incidents(limit=500):
         return pd.DataFrame(response.data)
     except Exception as e:
         st.error(f"❌ Database Error: {e}")
-        st.info("Make sure your collectors have run at least once.")
         return pd.DataFrame()
 
 df = load_incidents()
