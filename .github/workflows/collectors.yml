@@ -3,7 +3,7 @@ name: OSINT Data Collectors
 on:
   schedule:
     - cron: '*/20 * * * *'     # Every 20 minutes
-  workflow_dispatch:           # Allows manual run
+  workflow_dispatch:           # Allows manual trigger
 
 jobs:
   collect:
@@ -23,11 +23,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Collectors
+      - name: Run All Collectors
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python scripts/run_collectors.py
 
       - name: Show Summary
-        run: echo "✅ Data collection cycle completed at $(date)"
+        run: echo "✅ Data collection cycle completed at $(date UTC)"
