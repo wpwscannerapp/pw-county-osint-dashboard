@@ -6,18 +6,14 @@ import plotly.express as px
 from config import SUPABASE_URL, SUPABASE_KEY, SCHEMA
 from supabase import create_client, Client
 
-st.set_page_config(
-    page_title="PWC OSINT Dashboard",
-    page_icon="🚨",
-    layout="wide"
-)
+st.set_page_config(page_title="PWC OSINT Dashboard", page_icon="🚨", layout="wide")
 
 st.title("🚨 Prince William County OSINT Dashboard")
 st.markdown("Real-time Open Source Intelligence for Police, Fire, Rescue & Local News")
 
 # Initialize Supabase
 @st.cache_resource
-def get_supabase() -> Client:
+def get_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 supabase = get_supabase()
@@ -25,7 +21,7 @@ supabase = get_supabase()
 @st.cache_data(ttl=60)
 def load_incidents(limit=500):
     try:
-        response = supabase.table("incidents") \   # Use public schema
+        response = supabase.table("incidents") \
             .select("*") \
             .order("created_at", desc=True) \
             .limit(limit) \
@@ -33,13 +29,12 @@ def load_incidents(limit=500):
         return pd.DataFrame(response.data)
     except Exception as e:
         st.error(f"❌ Database Error: {e}")
-        st.info("Make sure SUPABASE_URL and SUPABASE_KEY are set correctly in Streamlit Secrets.")
         return pd.DataFrame()
 
 df = load_incidents()
 
 if df.empty:
-    st.warning("⚠️ No incidents found yet. Collectors are running in the background via GitHub Actions.")
+    st.warning("⚠️ No incidents found yet. Collectors are running via GitHub Actions.")
     st.stop()
 
 # Filters
@@ -50,7 +45,6 @@ selected_location = st.sidebar.selectbox("📍 Location", locations)
 categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
 selected_category = st.sidebar.selectbox("📌 Category", categories)
 
-# Filter data
 filtered_df = df.copy()
 if selected_location != 'All':
     filtered_df = filtered_df[filtered_df['location'] == selected_location]
