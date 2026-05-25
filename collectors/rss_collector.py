@@ -65,18 +65,13 @@ class RSSCollector:
         try:
             feed = feedparser.parse(feed_url)
             count = 0
-
             for entry in feed.entries[:15]:
                 text = entry.get('title', '') + " " + entry.get('summary', '')
                 categories = self.check_keyword_match(text)
-
-                if categories:  # Only store relevant incidents
-                    if self.store_incident(entry, feed_name, categories):
-                        count += 1
-
+                if categories and self.store_incident(entry, feed_name, categories):
+                    count += 1
             logger.info(f"[+] Collected {count} items from {feed_name}")
             return count
-
         except Exception as e:
             logger.error(f"[!] Feed error {feed_name}: {e}")
             return 0
@@ -86,7 +81,7 @@ class RSSCollector:
         total = 0
         for feed in self.feeds:
             total += self.collect_from_feed(feed['url'], feed['name'])
-        logger.info(f"[+] RSS collection finished. Total: {total}")
+        logger.info(f"[+] RSS collection complete. Total: {total}")
 
 
 def run_rss_collector():
