@@ -3,74 +3,100 @@ import pandas as pd
 from datetime import datetime
 import plotly.express as px
 
-# Use the official Streamlit Supabase connection
-from st_supabase_connection import SupabaseConnection
+from config import SUPABASE_URL, SUPABASE_KEY, SCHEMA
+from supabase import create_client, Client
 
-st.set_page_config(page_title="PWC OSINT Dashboard", page_icon="🚨", layout="wide")
+st.set_page_config(
+    page_title="PWC OSINT Dashboard",
+    page_icon="🚨",
+    layout="wide"
+)
 
 st.title("🚨 Prince William County OSINT Dashboard")
-st.markdown("Real-time incident monitoring")
+st.markdown("Real-time Open Source Intelligence for Police, Fire, Rescue & Local News")
 
-# Initialize Supabase connection
-conn = st.connection("supabase", type=SupabaseConnection)
+# Initialize Supabase client
+@st.cache_resource
+def get_supabase() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-@st.cache_data(ttl=60)  # Refresh every minute
-def load_incidents():
+supabase = get_supabase()
+
+@st.cache_data(ttl=60)  # Refresh every 60 seconds
+def load_incidents(limit=500):
     try:
-        response = conn.table("pwc_osint.incidents").select("*").order("created_at", desc=True).limit(500).execute()
+        response = supabase.table(f"{SCHEMA}.incidents") \
+            .select("*") \
+            .order("created_at", desc=True) \
+            .limit(limit) \
+            .execute()
+        
         return pd.DataFrame(response.data)
     except Exception as e:
-        st.error(f"Database error: {e}")
+        st.error(f"Database connection error: {e}")
         return pd.DataFrame()
 
+# Load data
 df = load_incidents()
 
 if df.empty:
-    st.warning("No incidents found yet. Collectors should be running via GitHub Actions.")
+    st.warning("⚠️ No incidents found yet. Your collectors are running via GitHub Actions.")
+    st.info("First data should appear within 15-30 minutes after collectors run.")
     st.stop()
 
-# Filters
-st.sidebar.header("Filters")
-locations = ['All'] + sorted(df['location'].unique().tolist())
-selected_location = st.sidebar.selectbox("Location", locations)
+# ======================== SIDEBAR FILTERS ========================
+st.sidebar.header("🔍 Filters")
 
-categories = ['All'] + sorted(df['category'].unique().tolist())
-selected_category = st.sidebar.selectbox("Category", categories)
+# Location filter
+locations = ['All'] + sorted(df['location'].dropna().unique().tolist())
+selected_location = st.sidebar.selectbox("📍 Location", locations)
+
+# Category filter
+categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
+selected_category = st.sidebar.selectbox("📌 Category", categories)
 
 # Apply filters
-filtered = df.copy()
+filtered_df = df.copy()
 if selected_location != 'All':
-    filtered = filtered[filtered['location'] == selected_location]
+    filtered_df = filtered_df[filtered_df['location'] == selected_location]
 if selected_category != 'All':
-    filtered = filtered[filtered['category'] == selected_category]
+    filtered_df = filtered_df[filtered_df['category'] == selected_category]
 
-# Dashboard
+# ======================== MAIN DASHBOARD ========================
 col1, col2, col3 = st.columns(3)
-col1.metric("Total Incidents", len(filtered))
-col2.metric("Last Updated", filtered['created_at'].max() if not filtered.empty else "N/A")
-col3.metric("Sources", filtered['source'].nunique() if 'source' in filtered.columns else 0)
+col1.metric("Total Incidents", len(filtered_df))
+col2.metric("Last Updated", 
+            filtered_df['created_at'].max()[:16] if not filtered_df.empty else "N/A")
+col3.metric("Sources", filtered_df['source'].nunique() if 'source' in filtered_df.columns else 0)
 
-tab1, tab2, tab3 = st.tabs(["Live Incidents", "Heatmap", "Analytics"])
+tab1, tab2, tab3 = st.tabs(["📋 Live Incidents", "🗺️ Heatmap", "📊 Analytics"])
 
 with tab1:
-    st.dataframe(filtered, use_container_width=True, hide_index=True)
+    st.dataframe(
+        filtered_df[['created_at', 'location', 'category', 'title', 'description', 'source']],
+        use_container_width=True,
+        hide_index=True
+    )
 
 with tab2:
-    if not filtered.empty and 'latitude' in filtered.columns:
-        st.map(filtered, latitude='latitude', longitude='longitude')
+    if not filtered_df.empty and 'latitude' in filtered_df.columns and filtered_df['latitude'].notna().any():
+        st.map(
+            filtered_df,
+            latitude='latitude',
+            longitude='longitude',
+            size=20,
+            color='category'
+        )
     else:
-        st.info("No location data available.")
+        st.info("No location data available for mapping yet.")
 
 with tab3:
-    if not filtered.empty:
+    if not filtered_df.empty:
         c1, c2 = st.columns(2)
         with c1:
-            fig = px.pie(filtered, names='category', title="Incidents by Category")
+            st.subheader("Incidents by Category")
+            fig = px.pie(filtered_df, names='category', title="Category Distribution")
             st.plotly_chart(fig, use_container_width=True)
+        
         with c2:
-            filtered['date'] = pd.to_datetime(filtered['created_at']).dt.date
-            trend = filtered.groupby('date').size().reset_index(name='count')
-            fig2 = px.line(trend, x='date', y='count', title="Trend Over Time")
-            st.plotly_chart(fig2, use_container_width=True)
-
-st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            st.subheader("
