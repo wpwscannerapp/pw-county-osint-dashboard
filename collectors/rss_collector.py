@@ -3,8 +3,8 @@
 import logging
 import feedparser
 from datetime import datetime
-from config import RSS_FEEDS, INCIDENT_KEYWORDS, DATABASE_URL, SCHEMA
-import psycopg2
+from config import SUPABASE_URL, SUPABASE_KEY, RSS_FEEDS, INCIDENT_KEYWORDS, SCHEMA
+from supabase import create_client, Client
 from textblob import TextBlob
 
 logging.basicConfig(level=logging.INFO)
@@ -13,123 +13,84 @@ logger = logging.getLogger(__name__)
 
 class RSSCollector:
     def __init__(self):
-        self.db_url = DATABASE_URL
-        self.schema = SCHEMA
+        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        self.table_name = f"{SCHEMA}.incidents"
         self.feeds = RSS_FEEDS
         self.keywords = INCIDENT_KEYWORDS
-        self.conn = None
-   
-    def connect_db(self):
-        try:
-            self.conn = psycopg2.connect(self.db_url, connect_timeout=10)
-            logger.info("[+] Connected to database")
-        except Exception as e:
-            logger.error(f"[!] Database connection failed: {e}")
-            raise
-   
-    def close_db(self):
-        if self.conn:
-            self.conn.close()
-            logger.info("[+] Database connection closed")
-   
+
     def analyze_sentiment(self, text):
         try:
-            blob = TextBlob(text)
-            return float(blob.sentiment.polarity)
+            return float(TextBlob(text).sentiment.polarity)
         except:
             return 0.0
-   
+
     def check_keyword_match(self, text):
         text_lower = text.lower()
-        matched_categories = []
-       
+        matched = []
         for category, keywords in self.keywords.items():
-            for keyword in keywords:
-                if keyword in text_lower:
-                    matched_categories.append(category)
-                    break
-       
-        return matched_categories
-   
+            if any(kw in text_lower for kw in keywords):
+                matched.append(category)
+        return matched
+
     def store_incident(self, entry, feed_name, categories):
         try:
-            cursor = self.conn.cursor()
-           
-            query = f"""
-                INSERT INTO {self.schema}.incidents
-                (title, description, category, source, source_url,
-                 external_id, sentiment, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (external_id) DO NOTHING
-            """
-           
-            sentiment = self.analyze_sentiment(
-                entry.get('summary', entry.get('title', ''))
-            )
+            sentiment = self.analyze_sentiment(entry.get('summary', entry.get('title', '')))
             category = categories[0] if categories else 'news'
-           
-            cursor.execute(query, (
-                entry.get('title', 'No Title'),
-                entry.get('summary', ''),
-                category,
-                feed_name,
-                entry.get('link', ''),
-                entry.get('id', entry.get('link', '')),
-                sentiment,
-                datetime.now()
-            ))
-           
-            self.conn.commit()
-            cursor.close()
-            logger.info(f"[+] Stored RSS entry: {entry.get('title', 'Unknown')}")
+
+            incident = {
+                "title": entry.get('title', 'No Title'),
+                "description": entry.get('summary', ''),
+                "category": category,
+                "source": feed_name,
+                "source_url": entry.get('link', ''),
+                "external_id": entry.get('id') or entry.get('link', ''),
+                "sentiment": sentiment,
+                "created_at": datetime.now().isoformat()
+            }
+
+            self.supabase.table(self.table_name).upsert(
+                incident, 
+                on_conflict="external_id"
+            ).execute()
+
+            logger.info(f"[+] Stored RSS: {entry.get('title')[:80]}...")
             return True
-           
+
         except Exception as e:
-            logger.error(f"[!] Error storing RSS entry: {e}")
+            logger.error(f"[!] Store RSS failed: {e}")
             return False
-   
+
     def collect_from_feed(self, feed_url, feed_name):
         logger.info(f"[*] Collecting from {feed_name}...")
-       
         try:
             feed = feedparser.parse(feed_url)
-           
             count = 0
-            for entry in feed.entries[:15]:   # Increased slightly
-                categories = self.check_keyword_match(
-                    entry.get('title', '') + " " + entry.get('summary', '')
-                )
-               
-                if categories:   # Only store if it matches keywords
+
+            for entry in feed.entries[:15]:
+                text = entry.get('title', '') + " " + entry.get('summary', '')
+                categories = self.check_keyword_match(text)
+
+                if categories:  # Only store relevant incidents
                     if self.store_incident(entry, feed_name, categories):
                         count += 1
-           
-            logger.info(f"[+] Collected {count} entries from {feed_name}")
+
+            logger.info(f"[+] Collected {count} items from {feed_name}")
             return count
-           
+
         except Exception as e:
-            logger.error(f"[!] Error collecting from {feed_name}: {e}")
+            logger.error(f"[!] Feed error {feed_name}: {e}")
             return 0
-   
+
     def collect_all(self):
-        logger.info("[*] Starting RSS data collection...")
-       
-        self.connect_db()
-        try:
-            total = 0
-            for feed in self.feeds:
-                count = self.collect_from_feed(feed['url'], feed['name'])
-                total += count
-           
-            logger.info(f"[+] RSS data collection complete. Total entries: {total}")
-           
-        finally:
-            self.close_db()
+        logger.info("[*] Starting RSS collection...")
+        total = 0
+        for feed in self.feeds:
+            total += self.collect_from_feed(feed['url'], feed['name'])
+        logger.info(f"[+] RSS collection finished. Total: {total}")
 
 
 def run_rss_collector():
-    collector = RSSCollector()
-    collector.collect_all()
+    RSSCollector().collect_all()
 
 
 if __name__ == "__main__":
