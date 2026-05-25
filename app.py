@@ -25,7 +25,7 @@ supabase = get_supabase()
 @st.cache_data(ttl=60)
 def load_incidents(limit=500):
     try:
-        response = supabase.table(f"{SCHEMA}.incidents") \
+        response = supabase.table("incidents") \   # Use public schema
             .select("*") \
             .order("created_at", desc=True) \
             .limit(limit) \
