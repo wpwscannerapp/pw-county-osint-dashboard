@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-
+"""
+Main script to run all data collectors for PWC OSINT Dashboard
+"""
 import logging
-import time
-from datetime import datetime
-from collectors.rss_collector import RSSCollector
-from collectors.fire_ems_collector import FireEMSCollector
+from collectors.fire_ems_collector import run_fire_ems_collector
+from collectors.rss_collector import run_rss_collector
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,32 +12,27 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def run_all_collectors():
-    """Run all data collectors in sequence"""
-    logger.info("="*60)
-    logger.info(f"Starting data collection cycle at {datetime.now()}")
-    logger.info("="*60)
-    
-    start_time = time.time()
-    
+def main():
+    logger.info("=" * 60)
+    logger.info("🚀 Starting PWC OSINT Data Collectors")
+    logger.info("=" * 60)
+
     try:
-        logger.info("\n[1/2] Running RSS Feed Collector...")
-        rss_collector = RSSCollector()
-        rss_collector.collect_all()
+        # Run Fire/EMS Collector
+        logger.info("🔥 Running Fire & EMS Collector...")
+        run_fire_ems_collector()
         
-        logger.info("\n[2/2] Running Fire/EMS Data Collector...")
-        fire_ems_collector = FireEMSCollector()
-        fire_ems_collector.collect_all()
-        
+        # Run RSS/News Collector
+        logger.info("📰 Running RSS/News Collector...")
+        run_rss_collector()
+
+        logger.info("=" * 60)
+        logger.info("✅ All collectors completed successfully!")
+        logger.info("=" * 60)
+
     except Exception as e:
-        logger.error(f"[!] Error during data collection: {e}")
+        logger.error(f"❌ Error running collectors: {e}")
         raise
-    finally:
-        elapsed_time = time.time() - start_time
-        logger.info("="*60)
-        logger.info(f"Data collection cycle complete")
-        logger.info(f"Elapsed time: {elapsed_time:.2f} seconds")
-        logger.info("="*60)
 
 if __name__ == "__main__":
-    run_all_collectors()
+    main()
