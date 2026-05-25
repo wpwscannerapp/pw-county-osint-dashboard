@@ -22,28 +22,31 @@ def get_supabase():
 
 supabase = get_supabase()
 
-# ======================== LOAD DATA ========================
+# ======================== LOAD DATA (Strict pwc_osint) ========================
 @st.cache_data(ttl=60)
 def load_incidents(limit=500):
     try:
-        # Using public schema (this is where your table currently is)
-        response = supabase.table("incidents") \
+        response = supabase.table("pwc_osint.incidents") \
             .select("*") \
             .order("created_at", desc=True) \
             .limit(limit) \
             .execute()
+        
         df = pd.DataFrame(response.data)
-        st.success(f"✅ Loaded {len(df)} incidents from public.incidents")
+        st.success(f"✅ Loaded {len(df)} records from **pwc_osint.incidents**")
         return df
+        
     except Exception as e:
-        st.error(f"❌ Database Error: {e}")
+        st.error(f"❌ Could not load from pwc_osint.incidents")
+        st.error(f"Error: {e}")
+        st.info("Make sure the table 'pwc_osint.incidents' exists and your collectors are writing to it.")
         return pd.DataFrame()
 
 df = load_incidents()
 
 if df.empty:
-    st.warning("⚠️ No incidents found yet.")
-    st.info("→ Go to GitHub → Actions and manually run the 'OSINT Data Collectors' workflow.")
+    st.warning("⚠️ No incidents found in pwc_osint.incidents")
+    st.info("→ Run the GitHub Actions collector to populate data.")
     st.stop()
 
 # ======================== FILTERS ========================
