@@ -13,38 +13,50 @@ st.set_page_config(
 )
 
 st.title("🚨 Prince William County OSINT Dashboard")
-st.markdown("**Real-time** incident monitoring for Police, Fire, Rescue & Local News in Prince William County, VA")
+st.markdown("**Real-time** incident monitoring for Prince William County, VA")
 
-# ======================== SUPABASE CONNECTION ========================
 @st.cache_resource
 def get_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 supabase = get_supabase()
 
-# ======================== LOAD DATA ========================
 @st.cache_data(ttl=60)
 def load_incidents(limit=500):
     try:
-        # Using public schema (as per Supabase hint)
-        response = supabase.table("incidents") \
+        # Try pwc_osint schema first
+        response = supabase.table("pwc_osint.incidents") \
             .select("*") \
             .order("created_at", desc=True) \
             .limit(limit) \
             .execute()
-        return pd.DataFrame(response.data)
+        df = pd.DataFrame(response.data)
+        st.success(f"✅ Loaded {len(df)} records from **pwc_osint.incidents**")
+        return df
     except Exception as e:
-        st.error(f"❌ Database Error: {e}")
-        return pd.DataFrame()
+        st.warning(f"Could not load from pwc_osint.incidents: {e}")
+        try:
+            # Fallback to public schema
+            response = supabase.table("incidents") \
+                .select("*") \
+                .order("created_at", desc=True) \
+                .limit(limit) \
+                .execute()
+            df = pd.DataFrame(response.data)
+            st.info(f"Loaded from public.incidents ({len(df)} records)")
+            return df
+        except Exception as e2:
+            st.error(f"Both tables failed: {e2}")
+            return pd.DataFrame()
 
 df = load_incidents()
 
 if df.empty:
-    st.warning("⚠️ No incidents found yet.")
-    st.info("→ Go to **GitHub → Actions** and manually run the 'OSINT Data Collectors' workflow.")
+    st.warning("⚠️ No incidents found.")
+    st.info("Run the GitHub Actions collector to populate data.")
     st.stop()
 
-# ======================== FILTERS ========================
+# Rest of the app (filters + display)
 st.sidebar.header("🔍 Filters")
 
 loc_col = 'location' if 'location' in df.columns else None
@@ -56,21 +68,17 @@ selected_location = st.sidebar.selectbox("📍 Location", locations)
 categories = ['All'] + sorted(df[cat_col].dropna().unique().tolist()) if cat_col else ['All']
 selected_category = st.sidebar.selectbox("📌 Category", categories)
 
-# Apply filters
 filtered_df = df.copy()
 if selected_location != 'All' and loc_col:
     filtered_df = filtered_df[filtered_df[loc_col] == selected_location]
 if selected_category != 'All' and cat_col:
     filtered_df = filtered_df[filtered_df[cat_col] == selected_category]
 
-# ======================== METRICS ========================
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Incidents", len(filtered_df))
-col2.metric("Last Updated", 
-            filtered_df['created_at'].max()[:16] if not filtered_df.empty else "—")
+col2.metric("Last Updated", filtered_df['created_at'].max()[:16] if not filtered_df.empty else "—")
 col3.metric("Sources", filtered_df.get('source', pd.Series()).nunique())
 
-# ======================== TABS ========================
 tab1, tab2, tab3 = st.tabs(["📋 Live Incidents", "🗺️ Heatmap", "📊 Analytics"])
 
 with tab1:
@@ -81,23 +89,19 @@ with tab1:
 with tab2:
     if not filtered_df.empty and 'latitude' in filtered_df.columns and filtered_df['latitude'].notna().any():
         st.map(filtered_df, latitude='latitude', longitude='longitude', size=20)
-    else:
-        st.info("No location data available for mapping yet.")
 
 with tab3:
-    if not filtered_df.empty:
+    if not filtered_df.empty and cat_col and cat_col in filtered_df.columns:
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader("Incidents by Category")
-            if cat_col and cat_col in filtered_df.columns:
-                fig = px.pie(filtered_df, names=cat_col)
-                st.plotly_chart(fig, width='stretch')
+            st.subheader("By Category")
+            fig = px.pie(filtered_df, names=cat_col)
+            st.plotly_chart(fig, width='stretch')
         with c2:
-            st.subheader("Incidents Over Time")
-            if 'created_at' in filtered_df.columns:
-                filtered_df['date'] = pd.to_datetime(filtered_df['created_at']).dt.date
-                trend = filtered_df.groupby('date').size().reset_index(name='count')
-                fig2 = px.line(trend, x='date', y='count')
-                st.plotly_chart(fig2, width='stretch')
+            st.subheader("Over Time")
+            filtered_df['date'] = pd.to_datetime(filtered_df['created_at']).dt.date
+            trend = filtered_df.groupby('date').size().reset_index(name='count')
+            fig2 = px.line(trend, x='date', y='count')
+            st.plotly_chart(fig2, width='stretch')
 
 st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
