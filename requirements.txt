@@ -1,7 +1,11 @@
+streamlit
 supabase
 pandas
+plotly
+folium
 geopy
 feedparser
 textblob
 requests
 python-dotenv
+spacy
