@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Run all data collectors for PWC OSINT Dashboard
-"""
+
 import logging
 from collectors.fire_ems_collector import run_fire_ems_collector
 from collectors.rss_collector import run_rss_collector
@@ -20,8 +18,8 @@ def main():
     try:
         logger.info("🔥 Running Fire & EMS Collector...")
         run_fire_ems_collector()
-
-        logger.info("📰 Running RSS / News Collector...")
+        
+        logger.info("📰 Running RSS/News Collector...")
         run_rss_collector()
 
         logger.info("=" * 60)
@@ -29,9 +27,8 @@ def main():
         logger.info("=" * 60)
 
     except Exception as e:
-        logger.error(f"❌ Critical error in collectors: {e}")
+        logger.error(f"❌ Error running collectors: {e}")
         raise
-
 
 if __name__ == "__main__":
     main()
