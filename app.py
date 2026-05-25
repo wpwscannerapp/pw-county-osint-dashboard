@@ -41,17 +41,15 @@ df = load_incidents()
 
 if df.empty:
     st.warning("⚠️ No incidents found yet. Your collectors are running via GitHub Actions.")
-    st.info("First data should appear within 15-30 minutes after collectors run.")
+    st.info("First data should appear within 15-30 minutes.")
     st.stop()
 
 # ======================== SIDEBAR FILTERS ========================
 st.sidebar.header("🔍 Filters")
 
-# Location filter
 locations = ['All'] + sorted(df['location'].dropna().unique().tolist())
 selected_location = st.sidebar.selectbox("📍 Location", locations)
 
-# Category filter
 categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
 selected_category = st.sidebar.selectbox("📌 Category", categories)
 
@@ -66,7 +64,7 @@ if selected_category != 'All':
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Incidents", len(filtered_df))
 col2.metric("Last Updated", 
-            filtered_df['created_at'].max()[:16] if not filtered_df.empty else "N/A")
+            filtered_df['created_at'].max()[:16] if not filtered_df.empty and 'created_at' in filtered_df.columns else "N/A")
 col3.metric("Sources", filtered_df['source'].nunique() if 'source' in filtered_df.columns else 0)
 
 tab1, tab2, tab3 = st.tabs(["📋 Live Incidents", "🗺️ Heatmap", "📊 Analytics"])
@@ -84,8 +82,7 @@ with tab2:
             filtered_df,
             latitude='latitude',
             longitude='longitude',
-            size=20,
-            color='category'
+            size=20
         )
     else:
         st.info("No location data available for mapping yet.")
@@ -99,4 +96,11 @@ with tab3:
             st.plotly_chart(fig, use_container_width=True)
         
         with c2:
-            st.subheader("
+            st.subheader("Incidents Over Time")
+            filtered_df['date'] = pd.to_datetime(filtered_df['created_at']).dt.date
+            trend = filtered_df.groupby('date').size().reset_index(name='count')
+            fig2 = px.line(trend, x='date', y='count', title="Trend Over Time")
+            st.plotly_chart(fig2, use_container_width=True)
+
+# Footer
+st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')} | Data from pwc_osint schema")
