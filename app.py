@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 import plotly.express as px
 
-from config import SUPABASE_URL, SUPABASE_KEY
+from config import SUPABASE_URL, SUPABASE_KEY, SCHEMA
 from supabase import create_client, Client
 
 st.set_page_config(
@@ -15,6 +15,9 @@ st.set_page_config(
 st.title("🚨 Prince William County OSINT Dashboard")
 st.markdown("**Real-time** incident monitoring for Prince William County, VA")
 
+# NOTE: This app is connected to your MAIN Supabase project using pwc_osint schema
+# Do NOT mix with your other project (public schema)
+
 @st.cache_resource
 def get_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -24,18 +27,16 @@ supabase = get_supabase()
 @st.cache_data(ttl=60)
 def load_incidents(limit=500):
     try:
-        # Hardcoded to your schema
-        response = supabase.table("pwc_osint.incidents") \
+        response = supabase.table(f"{SCHEMA}.incidents") \
             .select("*") \
             .order("created_at", desc=True) \
             .limit(limit) \
             .execute()
-        
         df = pd.DataFrame(response.data)
-        st.success(f"✅ Loaded {len(df)} records from pwc_osint.incidents")
+        st.success(f"✅ Loaded {len(df)} records from {SCHEMA}.incidents")
         return df
     except Exception as e:
-        st.error(f"❌ Could not load from pwc_osint.incidents")
+        st.error(f"❌ Could not load from {SCHEMA}.incidents")
         st.error(str(e))
         return pd.DataFrame()
 
@@ -43,10 +44,10 @@ df = load_incidents()
 
 if df.empty:
     st.warning("⚠️ No incidents found yet.")
-    st.info("→ Go to GitHub → Actions and manually run the collector.")
+    st.info("→ Go to GitHub → Actions and manually run the collector workflow.")
     st.stop()
 
-# ======================== FILTERS ========================
+# Filters
 st.sidebar.header("🔍 Filters")
 
 locations = ['All'] + sorted(df['location'].dropna().unique().tolist())
@@ -55,18 +56,16 @@ selected_location = st.sidebar.selectbox("📍 Location", locations)
 categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
 selected_category = st.sidebar.selectbox("📌 Category", categories)
 
-# Apply filters
 filtered_df = df.copy()
 if selected_location != 'All':
     filtered_df = filtered_df[filtered_df['location'] == selected_location]
 if selected_category != 'All':
     filtered_df = filtered_df[filtered_df['category'] == selected_category]
 
-# ======================== DASHBOARD ========================
+# Dashboard
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Incidents", len(filtered_df))
-col2.metric("Last Updated", 
-            filtered_df['created_at'].max()[:16] if not filtered_df.empty else "—")
+col2.metric("Last Updated", filtered_df['created_at'].max()[:16] if not filtered_df.empty else "—")
 col3.metric("Sources", filtered_df.get('source', pd.Series()).nunique())
 
 tab1, tab2, tab3 = st.tabs(["📋 Live Incidents", "🗺️ Heatmap", "📊 Analytics"])
