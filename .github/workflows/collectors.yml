@@ -23,15 +23,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Collectors (with debug)
+      - name: Run Collectors
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: |
-          echo "=== Starting Collectors ==="
-          python -u scripts/run_collectors.py
-          echo "=== Collectors finished with exit code $? ==="
+        working-directory: .   # Ensure we're in root
+        run: python scripts/run_collectors.py
 
       - name: Summary
         if: always()
-        run: echo "Workflow completed at $(date -u)"
+        run: echo "✅ Workflow completed at $(date -u)"
