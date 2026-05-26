@@ -3,14 +3,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# =============================================
+# SUPABASE CONFIGURATION
+# =============================================
+# IMPORTANT: This should point to your MAIN project (the one with pwc_osint schema)
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("SUPABASE_URL and SUPABASE_KEY are required")
 
+# Schema for this OSINT dashboard
 SCHEMA = "pwc_osint"
 
+# =============================================
+# DATA CONFIGURATION
+# =============================================
 PWC_LOCATIONS = {
     'Manassas': {'lat': 38.7509, 'lon': -77.4734, 'radius_miles': 5},
     'Manassas Park': {'lat': 38.7942, 'lon': -77.4521, 'radius_miles': 3},
@@ -31,18 +39,3 @@ RSS_FEEDS = [
 FACEBOOK_PAGES = [
     {"name": "Western Prince William Scanner Feed", "url": "https://www.facebook.com/WesternPrinceWilliamScannerFeed"}
 ]
-
-INCIDENT_KEYWORDS = {
-    'police': ['police', 'shooting', 'arrest', 'crime', 'officer'],
-    'fire': ['fire', 'burning', 'explosion', 'smoke'],
-    'rescue': ['rescue', 'ambulance', 'ems', 'medical'],
-    'traffic': ['crash', 'accident', 'traffic'],
-}
-# X/Twitter Accounts to Monitor
-X_ACCOUNTS = [
-    "PWCPD",           # Prince William County Police
-    "ManassasCityPD",
-    # Add more accounts here
-]
-
-X_KEYWORDS = ["police", "fire", "rescue", "shooting", "crash", "ambulance", "EMS"]
