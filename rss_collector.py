@@ -2,7 +2,7 @@
 import logging
 import feedparser
 from datetime import datetime
-from config import SUPABASE_URL, SUPABASE_KEY, RSS_FEEDS, INCIDENT_KEYWORDS, SCHEMA
+from config import SUPABASE_URL, SUPABASE_KEY, RSS_FEEDS, INCIDENT_KEYWORDS
 from supabase import create_client, Client
 from textblob import TextBlob
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class RSSCollector:
     def __init__(self):
         self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        self.table_name = f"{SCHEMA}.incidents"
+        self.table_name = "pwc_osint.incidents"   # Hardcoded
         self.feeds = RSS_FEEDS
         self.keywords = INCIDENT_KEYWORDS
 
