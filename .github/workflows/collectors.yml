@@ -27,9 +27,4 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        working-directory: .   # Ensure we're in root
         run: python scripts/run_collectors.py
-
-      - name: Summary
-        if: always()
-        run: echo "✅ Workflow completed at $(date -u)"
