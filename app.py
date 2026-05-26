@@ -36,28 +36,27 @@ def load_incidents(limit=500):
 df = load_incidents()
 
 if df.empty:
-    st.warning("⚠️ No incidents found in pwc_osint.incidents yet.")
-    st.info("Run the GitHub Actions collector to populate data.")
+    st.warning("⚠️ No incidents found yet.")
+    st.info("→ Go to GitHub → Actions and manually run the collector workflow.")
     st.stop()
 
-# Filters & Dashboard (same clean version as before)
+# Filters
 st.sidebar.header("🔍 Filters")
 
-loc_col = 'location' if 'location' in df.columns else None
-cat_col = 'category' if 'category' in df.columns else 'type' if 'type' in df.columns else None
-
-locations = ['All'] + sorted(df[loc_col].dropna().unique().tolist()) if loc_col else ['All']
+locations = ['All'] + sorted(df['location'].dropna().unique().tolist())
 selected_location = st.sidebar.selectbox("📍 Location", locations)
 
-categories = ['All'] + sorted(df[cat_col].dropna().unique().tolist()) if cat_col else ['All']
+categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
 selected_category = st.sidebar.selectbox("📌 Category", categories)
 
+# Apply filters
 filtered_df = df.copy()
-if selected_location != 'All' and loc_col:
-    filtered_df = filtered_df[filtered_df[loc_col] == selected_location]
-if selected_category != 'All' and cat_col:
-    filtered_df = filtered_df[filtered_df[cat_col] == selected_category]
+if selected_location != 'All':
+    filtered_df = filtered_df[filtered_df['location'] == selected_location]
+if selected_category != 'All':
+    filtered_df = filtered_df[filtered_df['category'] == selected_category]
 
+# Dashboard
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Incidents", len(filtered_df))
 col2.metric("Last Updated", filtered_df['created_at'].max()[:16] if not filtered_df.empty else "—")
@@ -66,8 +65,7 @@ col3.metric("Sources", filtered_df.get('source', pd.Series()).nunique())
 tab1, tab2, tab3 = st.tabs(["📋 Live Incidents", "🗺️ Heatmap", "📊 Analytics"])
 
 with tab1:
-    display_cols = [c for c in ['created_at', loc_col, cat_col, 'title', 'description', 'source'] if c and c in filtered_df.columns]
-    st.dataframe(filtered_df[display_cols], width='stretch', hide_index=True)
+    st.dataframe(filtered_df, width='stretch', hide_index=True)
 
 with tab2:
     if not filtered_df.empty and 'latitude' in filtered_df.columns and filtered_df['latitude'].notna().any():
@@ -76,14 +74,14 @@ with tab2:
         st.info("No location data available yet.")
 
 with tab3:
-    if not filtered_df.empty and cat_col and cat_col in filtered_df.columns:
+    if not filtered_df.empty:
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader("By Category")
-            fig = px.pie(filtered_df, names=cat_col)
+            st.subheader("Incidents by Category")
+            fig = px.pie(filtered_df, names='category')
             st.plotly_chart(fig, width='stretch')
         with c2:
-            st.subheader("Over Time")
+            st.subheader("Incidents Over Time")
             filtered_df['date'] = pd.to_datetime(filtered_df['created_at']).dt.date
             trend = filtered_df.groupby('date').size().reset_index(name='count')
             fig2 = px.line(trend, x='date', y='count')
