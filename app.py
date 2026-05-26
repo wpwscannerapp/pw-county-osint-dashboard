@@ -24,16 +24,16 @@ supabase = get_supabase()
 @st.cache_data(ttl=60)
 def load_incidents(limit=500):
     try:
-        response = supabase.table(f"{SCHEMA}.incidents") \
+        response = supabase.table ("pwc_osint.incidents") \
             .select("*") \
             .order("created_at", desc=True) \
             .limit(limit) \
             .execute()
         df = pd.DataFrame(response.data)
-        st.success(f"✅ Loaded {len(df)} records from {SCHEMA}.incidents")
+        st.success(f"✅ Loaded {len(df)} records from ("pwc_osint.incidents")
         return df
     except Exception as e:
-        st.error(f"❌ Could not load from {SCHEMA}.incidents")
+        st.error(f"❌ Could not load from ("pwc_osint.incidents")
         st.error(str(e))
         return pd.DataFrame()
 
