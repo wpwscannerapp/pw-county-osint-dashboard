@@ -2,7 +2,7 @@
 import logging
 import requests
 from datetime import datetime
-from config import SUPABASE_URL, SUPABASE_KEY, PWC_LOCATIONS, SCHEMA
+from config import SUPABASE_URL, SUPABASE_KEY, PWC_LOCATIONS
 from supabase import create_client, Client
 from geopy.distance import geodesic
 
@@ -14,7 +14,7 @@ class FireEMSCollector:
     def __init__(self):
         self.locations = PWC_LOCATIONS
         self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        self.table_name = f"{SCHEMA}.incidents"
+        self.table_name = "pwc_osint.incidents"   # Hardcoded
 
     def is_in_pwc(self, lat, lon):
         pwc = self.locations['Prince William County']
@@ -83,6 +83,7 @@ class FireEMSCollector:
                 }
                 if self.store_incident(incident):
                     count += 1
+
             logger.info(f"[+] Collected {count} Fire/EMS incidents")
         except Exception as e:
             logger.error(f"Collection error: {e}")
