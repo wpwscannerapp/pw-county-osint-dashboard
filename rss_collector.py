@@ -43,7 +43,7 @@ class RSSCollector:
             logger.info(f"[+] Stored RSS: {entry.get('title')[:80]}...")
             return True
         except Exception as e:
-            logger.error(f"[!] RSS store failed: {e}")
+            logger.error(f"[!] Store failed: {e}")
             return False
 
     def collect_from_feed(self, feed_url, feed_name):
@@ -65,12 +65,10 @@ class RSSCollector:
     def collect_all(self):
         logger.info("[*] Starting RSS collection...")
         total = sum(self.collect_from_feed(feed['url'], feed['name']) for feed in self.feeds)
-        logger.info(f"[+] RSS collection finished. Total: {total}")
-
+        logger.info(f"[+] RSS total: {total}")
 
 def run_rss_collector():
     RSSCollector().collect_all()
-
 
 if __name__ == "__main__":
     run_rss_collector()
