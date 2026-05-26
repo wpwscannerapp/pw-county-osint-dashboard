@@ -1,43 +1,46 @@
 #!/usr/bin/env python3
 """
-PWC OSINT Data Collectors - Direct Execution
+PWC OSINT Data Collectors - Simple Direct Run
 """
 
+import subprocess
 import sys
 import os
-import subprocess
 
-# Add project root to path
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, root_dir)
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+print(f"Running from: {root}")
 
-print(f"✅ Running from: {root_dir}")
-
-def run_script(script_path):
-    full_path = os.path.join(root_dir, script_path)
-    print(f"Running: {script_path}")
-    result = subprocess.run([sys.executable, full_path], 
-                          capture_output=True, 
-                          text=True, 
-                          cwd=root_dir)
-    print(result.stdout)
-    if result.stderr:
-        print("ERROR:", result.stderr)
-    return result.returncode == 0
+def run_collector(filename):
+    path = os.path.join(root, "collectors", filename)
+    print(f"\n🚀 Running {filename}...")
+    try:
+        result = subprocess.run([sys.executable, path], 
+                              cwd=root, 
+                              capture_output=True, 
+                              text=True,
+                              timeout=300)
+        print(result.stdout)
+        if result.stderr:
+            print("STDERR:", result.stderr)
+        print(f"✅ {filename} finished with code {result.returncode}")
+        return result.returncode == 0
+    except Exception as e:
+        print(f"❌ Failed to run {filename}: {e}")
+        return False
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("🚀 Starting PWC OSINT Data Collectors")
+    print("🚀 Starting All PWC OSINT Collectors")
     print("=" * 70)
 
     success = True
-    success &= run_script("collectors/fire_ems_collector.py")
-    success &= run_script("collectors/rss_collector.py")
-    success &= run_script("collectors/facebook_collector.py")
+    success &= run_collector("fire_ems_collector.py")
+    success &= run_collector("rss_collector.py")
+    success &= run_collector("facebook_collector.py")
 
     print("=" * 70)
     if success:
-        print("✅ All collectors completed successfully!")
+        print("🎉 ALL COLLECTORS COMPLETED SUCCESSFULLY!")
     else:
-        print("❌ Some collectors failed!")
+        print("⚠️ Some collectors had errors.")
     print("=" * 70)
