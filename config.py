@@ -38,3 +38,11 @@ INCIDENT_KEYWORDS = {
     'rescue': ['rescue', 'ambulance', 'ems', 'medical'],
     'traffic': ['crash', 'accident', 'traffic'],
 }
+# X/Twitter Accounts to Monitor
+X_ACCOUNTS = [
+    "PWCPD",           # Prince William County Police
+    "ManassasCityPD",
+    # Add more accounts here
+]
+
+X_KEYWORDS = ["police", "fire", "rescue", "shooting", "crash", "ambulance", "EMS"]
