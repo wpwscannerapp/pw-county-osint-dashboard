@@ -6,7 +6,11 @@ import plotly.express as px
 from config import SUPABASE_URL, SUPABASE_KEY, SCHEMA
 from supabase import create_client, Client
 
-st.set_page_config(page_title="PWC OSINT Dashboard", page_icon="🚨", layout="wide")
+st.set_page_config(
+    page_title="PWC OSINT Dashboard",
+    page_icon="🚨",
+    layout="wide"
+)
 
 st.title("🚨 Prince William County OSINT Dashboard")
 st.markdown("**Real-time** incident monitoring for Prince William County, VA")
@@ -26,11 +30,10 @@ def load_incidents(limit=500):
             .limit(limit) \
             .execute()
         df = pd.DataFrame(response.data)
-        st.success(f"✅ Loaded {len(df)} records from {SCHEMA}.incidents")
+        st.success(f"✅ Loaded {len(df)} records from pwc_osint.incidents")
         return df
     except Exception as e:
-        st.error(f"❌ Could not load from {SCHEMA}.incidents")
-        st.error(str(e))
+        st.error(f"❌ Could not load from pwc_osint.incidents: {e}")
         return pd.DataFrame()
 
 df = load_incidents()
@@ -49,7 +52,6 @@ selected_location = st.sidebar.selectbox("📍 Location", locations)
 categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
 selected_category = st.sidebar.selectbox("📌 Category", categories)
 
-# Apply filters
 filtered_df = df.copy()
 if selected_location != 'All':
     filtered_df = filtered_df[filtered_df['location'] == selected_location]
