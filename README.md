@@ -43,12 +43,6 @@ python database/init_db.py
 streamlit run app.py
 ```
 
-Dashboard available at: `http://localhost:8501`
-
-## Oracle Cloud Deployment
-
-See ORACLE_CLOUD_SETUP.md for complete deployment guide.
-
 ## Data Sources
 
 **Police & Emergency:**
