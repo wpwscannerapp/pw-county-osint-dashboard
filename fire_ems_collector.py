@@ -13,19 +13,19 @@ logger = logging.getLogger(__name__)
 class FireEMSCollector:
     def __init__(self):
         self.locations = PWC_LOCATIONS
-        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         self.table_name = f"{SCHEMA}.incidents"
 
-    def is_in_pwc(self, latitude, longitude):
+    def is_in_pwc(self, lat, lon):
         pwc = self.locations['Prince William County']
-        distance = geodesic((pwc['lat'], pwc['lon']), (latitude, longitude)).miles
+        distance = geodesic((pwc['lat'], pwc['lon']), (lat, lon)).miles
         return distance <= pwc['radius_miles']
 
-    def get_location_name(self, latitude, longitude):
+    def get_location_name(self, lat, lon):
         for name, data in self.locations.items():
             if name == 'Prince William County':
                 continue
-            distance = geodesic((data['lat'], data['lon']), (latitude, longitude)).miles
+            distance = geodesic((data['lat'], data['lon']), (lat, lon)).miles
             if distance <= data['radius_miles']:
                 return name
         return 'Prince William County'
@@ -45,8 +45,11 @@ class FireEMSCollector:
         logger.info("[*] Collecting Fire/EMS incidents...")
         try:
             params = {
-                'where': '1=1', 'outFields': '*', 'returnGeometry': 'true',
-                'f': 'json', 'resultRecordCount': 1000
+                'where': '1=1',
+                'outFields': '*',
+                'returnGeometry': 'true',
+                'f': 'json',
+                'resultRecordCount': 1000
             }
             resp = requests.get(
                 'https://services.arcgisonline.com/arcgis/rest/services/Virginia_Fire_EMS/FeatureServer/0/query',
@@ -82,7 +85,7 @@ class FireEMSCollector:
                     count += 1
             logger.info(f"[+] Collected {count} Fire/EMS incidents")
         except Exception as e:
-            logger.error(f"[!] Fire/EMS error: {e}")
+            logger.error(f"Collection error: {e}")
 
 def run_fire_ems_collector():
     FireEMSCollector().collect_incidents()
