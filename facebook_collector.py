@@ -16,7 +16,7 @@ class FacebookCollector:
     def store_incident(self, post):
         try:
             incident = {
-                "title": post.get("title", "Facebook Post"),
+                "title": post.get("title", "Facebook Update"),
                 "description": post.get("message", ""),
                 "category": post.get("category", "news"),
                 "source": post.get("source"),
@@ -25,7 +25,7 @@ class FacebookCollector:
                 "created_at": datetime.now().isoformat()
             }
             self.supabase.table(self.table_name).upsert(incident, on_conflict="external_id").execute()
-            logger.info(f"[+] Stored Facebook: {incident['title'][:80]}...")
+            logger.info(f"[+] Stored Facebook post from {post.get('source')}")
             return True
         except Exception as e:
             logger.error(f"[!] Facebook store failed: {e}")
@@ -35,7 +35,7 @@ class FacebookCollector:
         logger.info("[*] Starting Facebook collection...")
         for page in FACEBOOK_PAGES:
             logger.info(f"   → Scanning {page['name']}")
-            # Placeholder - replace with actual scraping/API when ready
+            # Placeholder for now (real scraping can be added later)
             dummy = {
                 "title": f"Update from {page['name']}",
                 "message": "Sample post from Western Prince William Scanner Feed",
@@ -46,10 +46,8 @@ class FacebookCollector:
             }
             self.store_incident(dummy)
 
-
 def run_facebook_collector():
     FacebookCollector().collect_all()
-
 
 if __name__ == "__main__":
     run_facebook_collector()
