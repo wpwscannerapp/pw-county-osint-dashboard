@@ -1,46 +1,31 @@
 #!/usr/bin/env python3
 """
-PWC OSINT Data Collectors - Simple Direct Run
+Simple PWC OSINT Collectors Runner
 """
 
-import subprocess
-import sys
-import os
+import logging
+from fire_ems_collector import run_fire_ems_collector
+from rss_collector import run_rss_collector
+from facebook_collector import run_facebook_collector
 
-root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-print(f"Running from: {root}")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-def run_collector(filename):
-    path = os.path.join(root, "collectors", filename)
-    print(f"\n🚀 Running {filename}...")
-    try:
-        result = subprocess.run([sys.executable, path], 
-                              cwd=root, 
-                              capture_output=True, 
-                              text=True,
-                              timeout=300)
-        print(result.stdout)
-        if result.stderr:
-            print("STDERR:", result.stderr)
-        print(f"✅ {filename} finished with code {result.returncode}")
-        return result.returncode == 0
-    except Exception as e:
-        print(f"❌ Failed to run {filename}: {e}")
-        return False
+def main():
+    logger.info("=" * 70)
+    logger.info("🚀 Starting PWC OSINT Data Collectors")
+    logger.info("=" * 70)
+
+    run_fire_ems_collector()
+    run_rss_collector()
+    run_facebook_collector()
+
+    logger.info("=" * 70)
+    logger.info("✅ All collectors finished!")
+    logger.info("=" * 70)
 
 if __name__ == "__main__":
-    print("=" * 70)
-    print("🚀 Starting All PWC OSINT Collectors")
-    print("=" * 70)
-
-    success = True
-    success &= run_collector("fire_ems_collector.py")
-    success &= run_collector("rss_collector.py")
-    success &= run_collector("facebook_collector.py")
-
-    print("=" * 70)
-    if success:
-        print("🎉 ALL COLLECTORS COMPLETED SUCCESSFULLY!")
-    else:
-        print("⚠️ Some collectors had errors.")
-    print("=" * 70)
+    main()
