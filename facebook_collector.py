@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class FacebookCollector:
     def __init__(self):
         self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        self.table_name = f"{SCHEMA}.incidents"
+        self.table_name = "pwc_osint.incidents"   # Hardcoded
 
     def store_incident(self, post):
         try:
@@ -25,17 +25,17 @@ class FacebookCollector:
                 "created_at": datetime.now().isoformat()
             }
             self.supabase.table(self.table_name).upsert(incident, on_conflict="external_id").execute()
-            logger.info(f"[+] Stored Facebook post from {post.get('source')}")
+            logger.info(f"[+] Stored Facebook post")
             return True
         except Exception as e:
-            logger.error(f"[!] Facebook store failed: {e}")
+            logger.error(f"[!] Store failed: {e}")
             return False
 
     def collect_all(self):
         logger.info("[*] Starting Facebook collection...")
         for page in FACEBOOK_PAGES:
             logger.info(f"   → Scanning {page['name']}")
-            # Placeholder for now (real scraping can be added later)
+            # Placeholder for now (real implementation later)
             dummy = {
                 "title": f"Update from {page['name']}",
                 "message": "Sample post from Western Prince William Scanner Feed",
