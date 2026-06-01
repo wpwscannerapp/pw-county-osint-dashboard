@@ -1,8 +1,8 @@
-name: OSINT Data Collectors
+name: PWC OSINT Collectors
 
 on:
   schedule:
-    - cron: '*/20 * * * *'     # Every 20 minutes
+    - cron: '*/15 * * * *'     # Run every 15 minutes
   workflow_dispatch:           # Manual trigger
 
 jobs:
@@ -23,12 +23,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run All Collectors
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      - name: Run all collectors
         run: python scripts/run_collectors.py
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Summary
-        if: always()
-        run: echo "✅ Workflow completed at $(date -u)"
+      - name: Completion message
+        run: echo "✅ Data collection cycle completed at $(date)"
