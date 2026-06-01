@@ -7,17 +7,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def init_database():
-    logger.info(f"Initializing database in Neon - Schema: {SCHEMA}")
+    logger.info(f"🚀 Initializing Neon database - Schema: {SCHEMA}")
     
     try:
         conn = psycopg2.connect(DATABASE_URL, connect_timeout=15)
         cur = conn.cursor()
         
-        # Set schema
+        # Create schema
         cur.execute(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA};")
         cur.execute(f"SET search_path TO {SCHEMA};")
         
-        # Create incidents table
+        # Main incidents table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS incidents (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -42,7 +42,7 @@ def init_database():
         logger.info("✅ Neon database schema initialized successfully!")
         
     except Exception as e:
-        logger.error(f"❌ Failed to initialize database: {e}")
+        logger.error(f"❌ Database initialization failed: {e}")
         raise
     finally:
         if 'cur' in locals(): cur.close()
