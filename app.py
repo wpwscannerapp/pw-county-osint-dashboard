@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
+import psycopg2
 from datetime import datetime
 import plotly.express as px
 
-from config import SUPABASE_URL, SUPABASE_KEY, SCHEMA
-from supabase import create_client, Client
+from config import DATABASE_URL, SCHEMA
 
 st.set_page_config(
     page_title="PWC OSINT Dashboard",
@@ -13,84 +13,101 @@ st.set_page_config(
 )
 
 st.title("🚨 Prince William County OSINT Dashboard")
-st.markdown("**Real-time** incident monitoring for Prince William County, VA")
+st.markdown("**Real-time Open Source Intelligence for Prince William County, Virginia**")
 
-# NOTE: This app is connected to your MAIN Supabase project using pwc_osint schema
-# Do NOT mix with your other project (public schema)
-
+# ========================
+# DATABASE CONNECTION
+# ========================
 @st.cache_resource
-def get_supabase():
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+def get_connection():
+    return psycopg2.connect(DATABASE_URL, connect_timeout=10)
 
-supabase = get_supabase()
+def load_incidents(limit=1000):
+    conn = get_connection()
+    query = f"""
+        SELECT 
+            created_at, title, description, category, incident_type, 
+            location, latitude, longitude, source, sentiment
+        FROM {SCHEMA}.incidents
+        ORDER BY created_at DESC
+        LIMIT %s
+    """
+    df = pd.read_sql_query(query, conn, params=(limit,))
+    conn.close()
+    return df
 
-@st.cache_data(ttl=60)
-def load_incidents(limit=500):
-    try:
-        response = supabase.table(f"{SCHEMA}.incidents") \
-            .select("*") \
-            .order("created_at", desc=True) \
-            .limit(limit) \
-            .execute()
-        df = pd.DataFrame(response.data)
-        st.success(f"✅ Loaded {len(df)} records from {SCHEMA}.incidents")
-        return df
-    except Exception as e:
-        st.error(f"❌ Could not load from {SCHEMA}.incidents")
-        st.error(str(e))
-        return pd.DataFrame()
-
+# Load data
 df = load_incidents()
 
 if df.empty:
-    st.warning("⚠️ No incidents found yet.")
-    st.info("→ Go to GitHub → Actions and manually run the collector workflow.")
+    st.warning("No incidents found yet. Data collectors are running in the background via GitHub Actions.")
     st.stop()
 
-# Filters
-st.sidebar.header("🔍 Filters")
+# ========================
+# SIDEBAR FILTERS
+# ========================
+st.sidebar.header("🔎 Filters")
 
-locations = ['All'] + sorted(df['location'].dropna().unique().tolist())
+locations = ['All'] + sorted(df['location'].dropna().unique())
 selected_location = st.sidebar.selectbox("📍 Location", locations)
 
-categories = ['All'] + sorted(df['category'].dropna().unique().tolist())
+categories = ['All'] + sorted(df['category'].dropna().unique())
 selected_category = st.sidebar.selectbox("📌 Category", categories)
 
+# Apply filters
 filtered_df = df.copy()
 if selected_location != 'All':
     filtered_df = filtered_df[filtered_df['location'] == selected_location]
 if selected_category != 'All':
     filtered_df = filtered_df[filtered_df['category'] == selected_category]
 
-# Dashboard
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Incidents", len(filtered_df))
-col2.metric("Last Updated", filtered_df['created_at'].max()[:16] if not filtered_df.empty else "—")
-col3.metric("Sources", filtered_df.get('source', pd.Series()).nunique())
+# ========================
+# MAIN DASHBOARD
+# ========================
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Total Incidents", len(filtered_df))
+with col2:
+    st.metric("Last Updated", filtered_df['created_at'].max().strftime("%b %d, %H:%M") if not filtered_df.empty else "N/A")
+with col3:
+    st.metric("Sources", filtered_df['source'].nunique())
+with col4:
+    st.metric("Critical", len(filtered_df[filtered_df.get('is_critical', False)]))
 
 tab1, tab2, tab3 = st.tabs(["📋 Live Incidents", "🗺️ Heatmap", "📊 Analytics"])
 
 with tab1:
-    st.dataframe(filtered_df, width='stretch', hide_index=True)
+    st.dataframe(
+        filtered_df[['created_at', 'location', 'category', 'title', 'description', 'source']],
+        use_container_width=True,
+        hide_index=True
+    )
 
 with tab2:
-    if not filtered_df.empty and 'latitude' in filtered_df.columns and filtered_df['latitude'].notna().any():
-        st.map(filtered_df, latitude='latitude', longitude='longitude', size=20)
+    if not filtered_df.empty and 'latitude' in filtered_df.columns:
+        st.map(
+            filtered_df.dropna(subset=['latitude', 'longitude']),
+            latitude='latitude',
+            longitude='longitude',
+            size=20
+        )
     else:
-        st.info("No location data available yet.")
+        st.info("No geographic data available yet.")
 
 with tab3:
-    if not filtered_df.empty:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader("Incidents by Category")
-            fig = px.pie(filtered_df, names='category')
-            st.plotly_chart(fig, width='stretch')
-        with c2:
-            st.subheader("Incidents Over Time")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("Incidents by Category")
+        if not filtered_df.empty:
+            fig = px.pie(filtered_df, names='category', title="Category Distribution")
+            st.plotly_chart(fig, use_container_width=True)
+    
+    with col_b:
+        st.subheader("Incidents Over Time")
+        if not filtered_df.empty:
             filtered_df['date'] = pd.to_datetime(filtered_df['created_at']).dt.date
-            trend = filtered_df.groupby('date').size().reset_index(name='count')
-            fig2 = px.line(trend, x='date', y='count')
-            st.plotly_chart(fig2, width='stretch')
+            time_df = filtered_df.groupby('date').size().reset_index(name='count')
+            fig2 = px.line(time_df, x='date', y='count', title="Incident Trend")
+            st.plotly_chart(fig2, use_container_width=True)
 
-st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Hosted on Neon + Streamlit Cloud")
