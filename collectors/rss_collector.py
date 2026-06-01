@@ -18,8 +18,12 @@ class RSSCollector:
         self.conn = None
    
     def connect_db(self):
-        self.conn = psycopg2.connect(self.db_url, connect_timeout=10)
-        logger.info("[+] Connected to Neon database")
+        try:
+            self.conn = psycopg2.connect(self.db_url, connect_timeout=10)
+            logger.info("[+] Connected to Neon")
+        except Exception as e:
+            logger.error(f"[!] Database connection failed: {e}")
+            raise
    
     def close_db(self):
         if self.conn:
@@ -27,7 +31,8 @@ class RSSCollector:
    
     def analyze_sentiment(self, text):
         try:
-            return float(TextBlob(text).sentiment.polarity)
+            blob = TextBlob(text)
+            return float(blob.sentiment.polarity)
         except:
             return 0.0
    
@@ -63,34 +68,36 @@ class RSSCollector:
             ))
             self.conn.commit()
             cursor.close()
+            logger.info(f"[+] Stored RSS: {entry.get('title')[:60]}...")
             return True
         except Exception as e:
             logger.error(f"[!] Store RSS error: {e}")
             return False
 
     def collect_from_feed(self, feed_url, feed_name):
-        logger.info(f"[*] Collecting from {feed_name}")
+        logger.info(f"[*] Collecting from {feed_name}...")
         try:
             feed = feedparser.parse(feed_url)
             count = 0
             for entry in feed.entries[:15]:
-                categories = self.check_keyword_match(entry.get('title', '') + " " + entry.get('summary', ''))
+                text = entry.get('title', '') + " " + entry.get('summary', '')
+                categories = self.check_keyword_match(text)
                 if categories and self.store_incident(entry, feed_name, categories):
                     count += 1
-            logger.info(f"[+] Collected {count} from {feed_name}")
+            logger.info(f"[+] Collected {count} entries from {feed_name}")
             return count
         except Exception as e:
             logger.error(f"[!] Feed error {feed_name}: {e}")
             return 0
 
     def collect_all(self):
-        logger.info("[*] Starting RSS collection...")
+        logger.info("[*] Starting RSS data collection...")
         self.connect_db()
         try:
             total = 0
             for feed in self.feeds:
                 total += self.collect_from_feed(feed['url'], feed['name'])
-            logger.info(f"[+] RSS total: {total}")
+            logger.info(f"[+] RSS collection complete. Total: {total}")
         finally:
             self.close_db()
 
