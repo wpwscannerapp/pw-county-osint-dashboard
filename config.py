@@ -3,22 +3,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# =============================================
-# SUPABASE CONFIGURATION
-# =============================================
-# IMPORTANT: This should point to your MAIN project (the one with pwc_osint schema)
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+# ========================
+# DATABASE CONFIGURATION (Neon)
+# ========================
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY are required")
+if not DATABASE_URL:
+    raise ValueError("❌ DATABASE_URL environment variable is required")
 
-# Schema for this OSINT dashboard
 SCHEMA = "pwc_osint"
 
-# =============================================
-# DATA CONFIGURATION
-# =============================================
+# ========================
+# LOCATION CONFIGURATION
+# ========================
 PWC_LOCATIONS = {
     'Manassas': {'lat': 38.7509, 'lon': -77.4734, 'radius_miles': 5},
     'Manassas Park': {'lat': 38.7942, 'lon': -77.4521, 'radius_miles': 3},
@@ -30,12 +27,21 @@ PWC_LOCATIONS = {
     'Prince William County': {'lat': 38.6546, 'lon': -77.4280, 'radius_miles': 20},
 }
 
+# ========================
+# RSS FEEDS
+# ========================
 RSS_FEEDS = [
     {"name": "Potomac Local News", "url": "https://potomaclocal.com/feed/"},
     {"name": "Prince William Living", "url": "https://princewilliamliving.com/feed/"},
     {"name": "Bristow Beat", "url": "https://bristowbeat.com/feed/"},
 ]
 
-FACEBOOK_PAGES = [
-    {"name": "Western Prince William Scanner Feed", "url": "https://www.facebook.com/WesternPrinceWilliamScannerFeed"}
-]
+# ========================
+# INCIDENT KEYWORDS
+# ========================
+INCIDENT_KEYWORDS = {
+    'police': ['police', 'shooting', 'arrest', 'crime', 'officer', 'sheriff'],
+    'fire': ['fire', 'burning', 'explosion', 'smoke'],
+    'rescue': ['rescue', 'medical', 'ambulance', 'ems', 'injury'],
+    'traffic': ['crash', 'accident', 'traffic', 'road closed']
+}
