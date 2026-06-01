@@ -2,6 +2,7 @@ streamlit
 supabase
 pandas
 plotly
+psycopg2-binary
 folium
 geopy
 feedparser
