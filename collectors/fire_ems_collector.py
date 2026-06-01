@@ -20,9 +20,9 @@ class FireEMSCollector:
     def connect_db(self):
         try:
             self.conn = psycopg2.connect(self.db_url, connect_timeout=10)
-            logger.info("[+] Connected to Neon database")
+            logger.info("[+] Connected to Neon")
         except Exception as e:
-            logger.error(f"[!] Database connection failed: {e}")
+            logger.error(f"[!] DB connection failed: {e}")
             raise
    
     def close_db(self):
@@ -48,8 +48,8 @@ class FireEMSCollector:
             cursor = self.conn.cursor()
             query = f"""
                 INSERT INTO {self.schema}.incidents
-                (title, description, category, incident_type, location,
-                 latitude, longitude, source, source_url, external_id, created_at)
+                (title, description, category, incident_type, location, latitude, longitude,
+                 source, source_url, external_id, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (external_id) DO NOTHING
             """
@@ -68,7 +68,6 @@ class FireEMSCollector:
             ))
             self.conn.commit()
             cursor.close()
-            logger.info(f"[+] Stored: {incident_data.get('title')}")
             return True
         except Exception as e:
             logger.error(f"[!] Store error: {e}")
@@ -77,7 +76,13 @@ class FireEMSCollector:
     def collect_incidents(self):
         logger.info("[*] Collecting Fire/EMS incidents...")
         try:
-            params = {'where': '1=1', 'outFields': '*', 'returnGeometry': 'true', 'f': 'json', 'resultRecordCount': 1000}
+            params = {
+                'where': '1=1',
+                'outFields': '*',
+                'returnGeometry': 'true',
+                'f': 'json',
+                'resultRecordCount': 1000
+            }
             response = requests.get(self.api_url, params=params, timeout=15)
             response.raise_for_status()
             data = response.json()
