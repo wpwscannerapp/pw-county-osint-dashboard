@@ -1,87 +1,64 @@
 #!/usr/bin/env python3
-"""
-X/Twitter Collector for PWC OSINT Dashboard
-Monitors official and local accounts for real-time alerts
-"""
-
 import logging
 from datetime import datetime
-from config import SUPABASE_URL, SUPABASE_KEY, SCHEMA, X_ACCOUNTS, X_KEYWORDS
-from supabase import create_client, Client
+from config import DATABASE_URL, SCHEMA, X_ACCOUNTS, X_KEYWORDS
+import psycopg2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Try to import snscrape (common for scraping)
-try:
-    import snscrape.modules.twitter as sntwitter
-except ImportError:
-    sntwitter = None
-    logger.warning("snscrape not installed. Install with: pip install snscrape")
-
-
 class XCollector:
     def __init__(self):
-        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-        self.table_name = f"{SCHEMA}.incidents"
+        self.db_url = DATABASE_URL
+        self.schema = SCHEMA
         self.accounts = X_ACCOUNTS
         self.keywords = X_KEYWORDS
+        self.conn = None
+
+    def connect_db(self):
+        self.conn = psycopg2.connect(self.db_url, connect_timeout=10)
+        logger.info("[+] Connected to Neon")
+
+    def close_db(self):
+        if self.conn:
+            self.conn.close()
 
     def store_incident(self, tweet):
         try:
-            incident = {
-                "title": tweet.content[:250],
-                "description": tweet.content,
-                "category": "police",  # Can be improved with better classification
-                "incident_type": "social-media-alert",
-                "location": "Prince William County",
-                "source": f"X/@{tweet.user.username}",
-                "source_url": f"https://twitter.com/{tweet.user.username}/status/{tweet.id}",
-                "external_id": str(tweet.id),
-                "created_at": tweet.date.isoformat() if hasattr(tweet, 'date') else datetime.now().isoformat()
-            }
-
-            self.supabase.table(self.table_name).upsert(
-                incident,
-                on_conflict="external_id"
-            ).execute()
-
-            logger.info(f"[+] Stored X post from @{tweet.user.username}")
+            cursor = self.conn.cursor()
+            query = f"""
+                INSERT INTO {self.schema}.incidents
+                (title, description, category, source, source_url, external_id, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (external_id) DO NOTHING
+            """
+            cursor.execute(query, (
+                tweet.get('title', 'X Post'),
+                tweet.get('text', ''),
+                tweet.get('category', 'news'),
+                'X (Twitter)',
+                tweet.get('url', ''),
+                tweet.get('id', ''),
+                datetime.now()
+            ))
+            self.conn.commit()
+            cursor.close()
             return True
         except Exception as e:
-            logger.error(f"[!] Failed to store X post: {e}")
+            logger.error(f"[!] Store X error: {e}")
             return False
 
-    def collect_from_account(self, username):
-        if not sntwitter:
-            logger.warning(f"snscrape not available for @{username}")
-            return 0
-
-        logger.info(f"[*] Collecting recent tweets from @{username}...")
-        try:
-            count = 0
-            # Search recent tweets from this account
-            query = f"from:{username} since:2026-05-01"
-
-            for tweet in sntwitter.TwitterSearchScraper(query).get_items():
-                text = tweet.content.lower()
-                
-                # Only store if it matches keywords
-                if any(kw in text for kw in self.keywords):
-                    if self.store_incident(tweet):
-                        count += 1
-                
-                if count >= 15:  # Limit per account per run
-                    break
-
-            logger.info(f"[+] Collected {count} relevant posts from @{username}")
-            return count
-
-        except Exception as e:
-            logger.error(f"Error collecting from @{username}: {e}")
-            return 0
-
     def collect_all(self):
-        logger.info("[*] Starting X/Twitter collection...")
-        total = 0
-        for account
+        logger.info("[*] X/Twitter collector started (placeholder)")
+        self.connect_db()
+        try:
+            # TODO: Add actual X API or scraping logic
+            logger.info("[+] X collection complete (placeholder)")
+        finally:
+            self.close_db()
+
+def run_x_collector():
+    XCollector().collect_all()
+
+if __name__ == "__main__":
+    run_x_collector()
